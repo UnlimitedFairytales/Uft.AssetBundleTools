@@ -1,0 +1,27 @@
+﻿root = true
+
+[*.cs]
+#### Core EditorConfig Options ####
+# https://learn.microsoft.com/ja-jp/visualstudio/ide/create-portable-custom-editor-options?view=vs-2022#supported-settings
+indent_style = space
+indent_size = 4
+tab_width = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+#### .NET Coding Conventions ####
+# https://learn.microsoft.com/ja-jp/dotnet/fundamentals/code-analysis/code-style-rule-options
+
+# this. and Me. preferences
+dotnet_style_qualification_for_event = true:suggestion
+dotnet_style_qualification_for_field = true:suggestion
+dotnet_style_qualification_for_method = true:suggestion
+dotnet_style_qualification_for_property = true:suggestion
+
+# primary constructor
+csharp_style_prefer_primary_constructors = false
+
+# Space preferences
+csharp_space_around_declaration_statements = ignore
