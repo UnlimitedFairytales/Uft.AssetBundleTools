@@ -14,25 +14,25 @@ namespace Uft.AssetBundleTools
 {
     public class AssetBundleHelper : IDisposable
     {
-        public const string DEFAULT_INPUT_BASE = "Assets/AssetBundle";
-        public const string DEFAULT_OUTPUT_BASE = "Assets/StreamingAssets/AssetBundles";
-        public static string DefaultBundleNameResolver(string path)
+        public const string DEFAULT_ASSET_PATH_BASE = "Assets/AssetBundle/";
+        public static string DefaultBundleNameResolver(string assetPath, string assetPathBase)
         {
-            var ext = Path.GetExtension(path).ToLower();
+            var ext = Path.GetExtension(assetPath).ToLower();
 
             // NOTE: シーンと非シーンは同一 AssetBundle に混在不可。シーンは全て一つにまとめる
             if (ext == ".unity") return "scenes";
 
-            // NOTE: Assets/AssetBundle/ あるいは Assets/ はバンドル名 の考慮から外す
-            if (path.StartsWith(DEFAULT_INPUT_BASE + "/", StringComparison.OrdinalIgnoreCase))
-                path = path[(DEFAULT_INPUT_BASE.Length + 1)..];
-            else if (path.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
-                path = path["Assets/".Length..];
+            // NOTE: assetPathBase あるいは Assets/ はバンドル名の考慮から外す
+            if (!assetPathBase.EndsWith("/")) assetPathBase += "/";
+            if (assetPath.StartsWith(assetPathBase, StringComparison.OrdinalIgnoreCase))
+                assetPath = assetPath[assetPathBase.Length..];
+            else if (assetPath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+                assetPath = assetPath["Assets/".Length..];
 
-            var firstSlash = path.IndexOf('/');
-            return (firstSlash >= 0 ? path[..firstSlash] : "assets").ToLower();
+            var firstSlash = assetPath.IndexOf('/');
+            return (firstSlash >= 0 ? assetPath[..firstSlash] : "assets").ToLower();
         }
-        public static string DEFAULT_BUNDLE_BASE = Path.Combine(Application.streamingAssetsPath, "AssetBundles");
+        public static readonly string DEFAULT_LOADING_ROOT_PATH = Path.Combine(Application.streamingAssetsPath, "AssetBundles");
         public static readonly Dictionary<RuntimePlatform, string> DefaultPlatformFolderNames = new()
         {
             { RuntimePlatform.WindowsEditor, "Windows" },
@@ -48,7 +48,7 @@ namespace Uft.AssetBundleTools
             { RuntimePlatform.Switch,        "Switch" },
         };
 #if UNITY_EDITOR
-        public static readonly Dictionary<BuildTarget, string> PlatformFolders = new()
+        public static readonly Dictionary<BuildTarget, string> DefaultBuildTargetFolderNames = new()
         {
             { BuildTarget.StandaloneWindows64, "Windows" },
             { BuildTarget.StandaloneOSX,       "OSX"     },
@@ -63,24 +63,28 @@ namespace Uft.AssetBundleTools
 
         static readonly string NAME_TAG = $"[{nameof(AssetBundleHelper)}]";
 
-        protected readonly Func<string, string> _bundleNameResolver;
+        protected readonly string _assetPathBase;
+        protected readonly Func<string, string, string> _bundleNameResolver;
+        protected readonly string _loadingRootPath;
         protected readonly Dictionary<RuntimePlatform, string> _platformFolderNames;
-        protected readonly string _bundleBasePath;
         protected readonly Action<string>? _logInfo;
         protected readonly Action<string>? _logError;
+
         protected readonly Dictionary<string, AssetBundle> _bundleCache = new();
         protected readonly Dictionary<string, Dictionary<string, string>> _assetNameMapCache = new();
         readonly Dictionary<string, UniTask<AssetBundle?>> _loadingTasks = new();
 
         public AssetBundleHelper(
-            Func<string, string>? bundleNameResolver = null,
-            string? bundleBasePath = null,
+            string? assetPathBase = null,
+            Func<string, string, string>? bundleNameResolver = null,
+            string? loadingRootPath = null,
             Dictionary<RuntimePlatform, string>? platformFolderNames = null,
             Action<string>? logInfo = null,
             Action<string>? logError = null)
         {
+            this._assetPathBase = (assetPathBase ?? DEFAULT_ASSET_PATH_BASE).TrimEnd('/') + "/";
             this._bundleNameResolver = bundleNameResolver ?? DefaultBundleNameResolver;
-            this._bundleBasePath = bundleBasePath ?? DEFAULT_BUNDLE_BASE;
+            this._loadingRootPath = loadingRootPath ?? DEFAULT_LOADING_ROOT_PATH;
             this._platformFolderNames = platformFolderNames ?? DefaultPlatformFolderNames;
             this._logInfo = logInfo;
             this._logError = logError;
@@ -101,9 +105,9 @@ namespace Uft.AssetBundleTools
 #if UNITY_EDITOR
         // Assign & build
 
-        public async UniTask AssignAssetBundleNamesAsync(string inputBase, Action<string>? onProgress = null)
+        public async UniTask<int> AssignBundleNamesAsync(Action<string>? onProgress = null)
         {
-            var guids = AssetDatabase.FindAssets("", new[] { inputBase });
+            var guids = AssetDatabase.FindAssets("", new[] { this._assetPathBase.TrimEnd('/') });
             int total = guids.Length;
             const int progressYieldSize = 100;
             int updateCount = 0;
@@ -122,7 +126,7 @@ namespace Uft.AssetBundleTools
                 var ext = Path.GetExtension(assetPath).ToLower();
                 if (ext == ".cs") continue;
 
-                var bundleName = this._bundleNameResolver(assetPath);
+                var bundleName = this._bundleNameResolver(assetPath, this._assetPathBase);
                 var importer   = AssetImporter.GetAtPath(assetPath);
                 if (importer == null || importer.assetBundleName == bundleName) continue;
 
@@ -133,6 +137,7 @@ namespace Uft.AssetBundleTools
             AssetDatabase.SaveAssets();
             AssetDatabase.RemoveUnusedAssetBundleNames();
             this._logInfo?.Invoke($"{NAME_TAG} {updateCount} assets updated.");
+            return updateCount;
         }
 
         /// <summary>BuildPipeline.BuildAssetBundles はメインスレッド専用同期API かつ 非同期版はない。そのためこちらは同期メソッド</summary>
@@ -148,25 +153,25 @@ namespace Uft.AssetBundleTools
 
         // Load & use
 
-        public T? LoadFromAssetBundle<T>(string path)
+        public T? LoadFromAssetBundle<T>(string assetPath)
             where T : UnityEngine.Object
         {
             AssetBundle? GetOrLoadBundle(string bundleName)
             {
                 if (this._bundleCache.TryGetValue(bundleName, out var cached)) return cached;
-                var bundlePath = Path.Combine(this._bundleBasePath, this.GetPlatformFolder(), bundleName);
+                var bundlePath = Path.Combine(this._loadingRootPath, this.GetPlatformFolder(), bundleName);
                 this._logInfo?.Invoke($"{NAME_TAG} Loading bundle: {bundlePath}");
                 return this.RegisterLoadedBundle(bundleName, AssetBundle.LoadFromFile(bundlePath), bundlePath);
             }
 
-            var bundleName = this._bundleNameResolver(path);
+            var bundleName = this._bundleNameResolver(assetPath, this._assetPathBase);
             var bundle = GetOrLoadBundle(bundleName);
             if (bundle == null) return null;
-            var assetPath = this.ResolveAssetName(bundleName, path);
-            return bundle.LoadAsset<T>(assetPath);
+            var fullName = this.ResolveAssetName(bundleName, assetPath);
+            return bundle.LoadAsset<T>(fullName);
         }
 
-        public async UniTask<T?> LoadFromAssetBundleAsync<T>(string path, CancellationToken ct)
+        public async UniTask<T?> LoadFromAssetBundleAsync<T>(string assetPath, CancellationToken ct)
             where T : UnityEngine.Object
         {
             UniTask<AssetBundle?> GetOrLoadBundleAsync(string bundleName, CancellationToken ct)
@@ -176,11 +181,16 @@ namespace Uft.AssetBundleTools
 
                 async UniTask<AssetBundle?> LoadAsync(string bundleName, CancellationToken ct)
                 {
-                    var bundlePath = Path.Combine(this._bundleBasePath, this.GetPlatformFolder(), bundleName);
-                    this._logInfo?.Invoke($"{NAME_TAG} Loading bundle: {bundlePath}");
-                    var bundle = this.RegisterLoadedBundle(bundleName, await AssetBundle.LoadFromFileAsync(bundlePath).ToUniTask(cancellationToken: ct), bundlePath);
-                    this._loadingTasks.Remove(bundleName);
-                    return bundle;
+                    try
+                    {
+                        var bundlePath = Path.Combine(this._loadingRootPath, this.GetPlatformFolder(), bundleName);
+                        this._logInfo?.Invoke($"{NAME_TAG} Loading bundle: {bundlePath}");
+                        return this.RegisterLoadedBundle(bundleName, await AssetBundle.LoadFromFileAsync(bundlePath).ToUniTask(cancellationToken: ct), bundlePath);
+                    }
+                    finally
+                    {
+                        this._loadingTasks.Remove(bundleName);
+                    }
                 }
 
                 var task = LoadAsync(bundleName, ct).Preserve(); // NOTE: Preserve() で多重await対応
@@ -188,11 +198,11 @@ namespace Uft.AssetBundleTools
                 return task;
             }
 
-            var bundleName = this._bundleNameResolver(path);
+            var bundleName = this._bundleNameResolver(assetPath, this._assetPathBase);
             var bundle = await GetOrLoadBundleAsync(bundleName, ct);
             if (bundle == null) return null;
-            var assetPath = this.ResolveAssetName(bundleName, path);
-            return (T?)await bundle.LoadAssetAsync<T>(assetPath).ToUniTask(cancellationToken: ct);
+            var fullName = this.ResolveAssetName(bundleName, assetPath);
+            return (T?)await bundle.LoadAssetAsync<T>(fullName).ToUniTask(cancellationToken: ct);
         }
 
         AssetBundle? RegisterLoadedBundle(string bundleName, AssetBundle? bundle, string bundlePath)
@@ -211,18 +221,18 @@ namespace Uft.AssetBundleTools
 
         protected virtual void CreateAssetNameCache(string bundleName, AssetBundle bundle)
         {
-            var prefix = (DEFAULT_INPUT_BASE + "/").ToLower();
+            var prefix = this._assetPathBase;
             var nameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var assetName in bundle.GetAllAssetNames())
+            foreach (var fullName in bundle.GetAllAssetNames())
             {
-                nameMap[assetName] = assetName;
-                nameMap[Path.ChangeExtension(assetName, null)] = assetName;
+                nameMap[fullName] = fullName;
+                nameMap[Path.ChangeExtension(fullName, null)] = fullName;
 
-                if (assetName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                if (fullName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 {
-                    var withoutPrefix = assetName[prefix.Length..];
-                    nameMap[withoutPrefix] = assetName;
-                    nameMap[Path.ChangeExtension(withoutPrefix, null)] = assetName;
+                    var withoutPrefix = fullName[prefix.Length..];
+                    nameMap[withoutPrefix] = fullName;
+                    nameMap[Path.ChangeExtension(withoutPrefix, null)] = fullName;
                 }
             }
             this._assetNameMapCache[bundleName] = nameMap;
@@ -235,12 +245,12 @@ namespace Uft.AssetBundleTools
                 : Application.platform.ToString();
         }
 
-        protected virtual string ResolveAssetName(string bundleName, string path)
+        protected virtual string ResolveAssetName(string bundleName, string assetPath)
         {
-            if (this._assetNameMapCache.TryGetValue(bundleName, out var nameMap) && nameMap.TryGetValue(path, out var fullName))
+            if (this._assetNameMapCache.TryGetValue(bundleName, out var nameMap) && nameMap.TryGetValue(assetPath, out var fullName))
                 return fullName;
-            this._logError?.Invoke($"{NAME_TAG} Asset not found in nameMap: {path} (bundle: {bundleName})");
-            return path;
+            this._logError?.Invoke($"{NAME_TAG} Asset not found in nameMap: {assetPath} (bundle: {bundleName})");
+            return assetPath;
         }
     }
 }

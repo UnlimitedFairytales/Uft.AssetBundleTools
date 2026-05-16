@@ -41,34 +41,27 @@ namespace Uft.AssetBundleTools.Editor
 
         // EditorWindow 内容 ===============================================
 
-        protected string? inputBase;
+        protected string? assetPathBase;
         protected string? outputBase;
         protected string[]? platformOptions;
         protected int selectedPlatformIndex;
-        protected AssetBundleHelper? assetBundleHelper;
 
         protected string? status;
         protected Color backGroundColor;
         bool _isRunning = false;
 
-        protected virtual void OnDisable()
-        {
-            this.assetBundleHelper?.Dispose();
-        }
-
         protected virtual void OnEnable()
         {
             this.titleContent.text = TITLE;
-            this.inputBase = AssetBundleHelper.DEFAULT_INPUT_BASE;
-            this.outputBase = AssetBundleHelper.DEFAULT_OUTPUT_BASE;
+            this.assetPathBase = AssetBundleHelper.DEFAULT_ASSET_PATH_BASE;
+            this.outputBase = "Assets/StreamingAssets/AssetBundles";
             var labelList = new List<string>();
-            foreach (var (_, label) in AssetBundleHelper.PlatformFolders)
+            foreach (var (_, label) in AssetBundleHelper.DefaultBuildTargetFolderNames)
             {
                 labelList.Add(label);
             }
             this.platformOptions = labelList.ToArray();
             this.selectedPlatformIndex = 0;
-            this.assetBundleHelper = new AssetBundleHelper();
             this.status = "";
         }
 
@@ -84,7 +77,7 @@ namespace Uft.AssetBundleTools.Editor
 
                 GUILayout.Space(10);
 
-                this.inputBase = EditorGUILayout.TextField("Input Folder", this.inputBase);
+                this.assetPathBase = EditorGUILayout.TextField("Input Folder", this.assetPathBase);
                 this.outputBase = EditorGUILayout.TextField("Output Folder", this.outputBase);
 
                 GUILayout.Space(10);
@@ -98,12 +91,16 @@ namespace Uft.AssetBundleTools.Editor
                         {
                             this._isRunning = true;
                             this.Repaint();
-                            await this.assetBundleHelper!.AssignAssetBundleNamesAsync(this.inputBase!, s =>
+                            using var helper = new AssetBundleHelper(
+                                assetPathBase: this.assetPathBase,
+                                logInfo: (message) => Debug.Log(message),
+                                logError: (message) => Debug.LogError(message));
+                            var count = await helper.AssignBundleNamesAsync(onProgress =>
                             {
-                                this.status = s;
+                                this.status = onProgress;
                                 this.Repaint();
                             });
-                            this.status = $"✅ 名前割り当て完了: {this.inputBase}";
+                            this.status = $"✅ 名前割り当て完了 ({count} 件更新)";
                             Debug.Log(this.status);
                         }
                         catch (Exception ex)
@@ -122,15 +119,19 @@ namespace Uft.AssetBundleTools.Editor
                 using (new GUILayout.HorizontalScope())
                 {
                     this.selectedPlatformIndex = EditorGUILayout.Popup(this.selectedPlatformIndex, this.platformOptions!);
-                    if (GUILayout.Button("Build", GUILayout.ExpandWidth(false)))
+                    if (GUILayout.Button("Build"))
                     {
                         var folder = this.platformOptions![this.selectedPlatformIndex];
-                        var target = AssetBundleHelper.PlatformFolders.First(kvp => kvp.Value == folder).Key;
+                        var target = AssetBundleHelper.DefaultBuildTargetFolderNames.First(kvp => kvp.Value == folder).Key;
                         try
                         {
                             // 同期処理のため Repaint() はビルド完了まで反映されません（エディタが固まります）
                             this.status = $"ビルド中... {folder}";
-                            this.assetBundleHelper!.Build(target, this.outputBase, folder);
+                            using var helper = new AssetBundleHelper(
+                                assetPathBase: this.assetPathBase,
+                                logInfo: (message) => Debug.Log(message),
+                                logError: (message) => Debug.LogError(message));
+                            helper.Build(target, this.outputBase, folder);
                             this.status = $"✅ ビルド完了: {folder}";
                             Debug.Log(this.status);
                         }
