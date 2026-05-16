@@ -1,7 +1,7 @@
 ﻿{
   "name": "com.unlimited-fairytales.assetbundletools",
   "displayName": "Uft.AssetBundleTools",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "unity": "6000.0",
   "hideInEditor": false,
   "description": "This is simple asset bundle helpers.\n\n* Dependencies must be installed manually.\n\nDependencies\n\n- com.unity.ugui 2.0.0\n    - Import TMP Essentials\n- https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask\n- https://assetstore.unity.com/packages/tools/animation/dotween-hotween-v2-27676\n    - Setup DOTween\n    - Create ASMDEF\n    - Project Settings > Player > Scripting Define Symbols > UNITASK_DOTWEEN_SUPPORT",
