@@ -1,16 +1,16 @@
 ManifestFileVersion: 0
 UnityVersion: 6000.0.67f1
-CRC: 605308486
+CRC: 262281545
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 85e30db5b7faec2bbd847d6bc6528069
+    Hash: 08a472ba0061eafc9f5a0011d16b51b9
   TypeTreeHash:
     serializedVersion: 2
     Hash: 83956254a1bbb466473b89f5c62006ab
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: a04e2e658c0835de94add972a6c374a9
+    Hash: c26bf94cdd54eb52964e4fa05e13d557
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -29,8 +29,8 @@ SerializeReferenceClassIdentifiers:
 - AssemblyName: UnityEngine.UI
   ClassName: UnityEngine.UI.MaskableGraphic/CullStateChangedEvent
 Assets:
-- Assets/AssetBundle/AssetBundleSample/PrefabC.prefab
-- Assets/AssetBundle/AssetBundleSample/PrefabA.prefab
-- Assets/AssetBundle/AssetBundleSample/PrefabD.prefab
-- Assets/AssetBundle/AssetBundleSample/PrefabB.prefab
+- Assets/Samples/AssetBundleSample/AssetBundle/AssetBundleSample/PrefabC.prefab
+- Assets/Samples/AssetBundleSample/AssetBundle/AssetBundleSample/PrefabA.prefab
+- Assets/Samples/AssetBundleSample/AssetBundle/AssetBundleSample/PrefabD.prefab
+- Assets/Samples/AssetBundleSample/AssetBundle/AssetBundleSample/PrefabB.prefab
 Dependencies: []
