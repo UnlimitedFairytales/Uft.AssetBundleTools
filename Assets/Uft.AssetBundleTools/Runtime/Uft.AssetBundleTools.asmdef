@@ -1,0 +1,21 @@
+{
+    "name": "Uft.AssetBundleTools",
+    "rootNamespace": "Uft.AssetBundleTools",
+    "references": [
+        "Unity.TextMeshPro",
+        "DOTween.Modules",
+        "UniTask",
+        "UniTask.DOTween",
+        "UniTask.Linq",
+        "UniTask.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
