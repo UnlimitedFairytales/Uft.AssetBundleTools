@@ -1,0 +1,20 @@
+{
+    "name": "Uft.AssetBundleTools.Samples.AssetBundleSample",
+    "rootNamespace": "",
+    "references": [
+        "Uft.AssetBundleTools",
+        "UniTask",
+        "UniTask.DOTween",
+        "UniTask.Linq",
+        "UniTask.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

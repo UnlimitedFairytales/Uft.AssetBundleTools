@@ -1,0 +1,36 @@
+ManifestFileVersion: 0
+UnityVersion: 6000.0.67f1
+CRC: 605308486
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: 85e30db5b7faec2bbd847d6bc6528069
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: 83956254a1bbb466473b89f5c62006ab
+  IncrementalBuildHash:
+    serializedVersion: 2
+    Hash: a04e2e658c0835de94add972a6c374a9
+HashAppended: 0
+ClassTypes:
+- Class: 1
+  Script: {instanceID: 0}
+- Class: 114
+  Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+- Class: 115
+  Script: {instanceID: 0}
+- Class: 222
+  Script: {instanceID: 0}
+- Class: 224
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers:
+- AssemblyName: UnityEngine.CoreModule
+  ClassName: UnityEngine.Events.PersistentCallGroup
+- AssemblyName: UnityEngine.UI
+  ClassName: UnityEngine.UI.MaskableGraphic/CullStateChangedEvent
+Assets:
+- Assets/AssetBundle/AssetBundleSample/PrefabC.prefab
+- Assets/AssetBundle/AssetBundleSample/PrefabA.prefab
+- Assets/AssetBundle/AssetBundleSample/PrefabD.prefab
+- Assets/AssetBundle/AssetBundleSample/PrefabB.prefab
+Dependencies: []
