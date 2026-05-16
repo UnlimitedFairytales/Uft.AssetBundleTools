@@ -46,6 +46,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _canvas: {fileID: 6336973708053632918}
+  _assetPathBase: Assets/Samples/AssetBundleSample/AssetBundle/
+  _loadingRootPath: Assets/StreamingAssets/AssetBundles/
 --- !u!1 &7847191228620128929
 GameObject:
   m_ObjectHideFlags: 0
