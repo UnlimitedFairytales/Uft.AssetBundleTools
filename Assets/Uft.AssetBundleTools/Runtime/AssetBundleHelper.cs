@@ -71,7 +71,6 @@ namespace Uft.AssetBundleTools
         protected readonly Action<string>? _logError;
 
         protected readonly Dictionary<string, AssetBundle> _bundleCache = new();
-        protected readonly Dictionary<string, Dictionary<string, string>> _assetNameMapCache = new();
         readonly Dictionary<string, UniTask<AssetBundle?>> _loadingTasks = new();
 
         public AssetBundleHelper(
@@ -170,7 +169,7 @@ namespace Uft.AssetBundleTools
             var bundleName = this._bundleNameResolver(assetPath, this._assetPathBase);
             var bundle = GetOrLoadBundle(bundleName);
             if (bundle == null) return null;
-            var fullName = this.ResolveAssetName(bundleName, assetPath);
+            var fullName = this.ResolveFullAssetPath(assetPath);
             return bundle.LoadAsset<T>(fullName);
 #endif
         }
@@ -209,7 +208,7 @@ namespace Uft.AssetBundleTools
             var bundleName = this._bundleNameResolver(assetPath, this._assetPathBase);
             var bundle = await GetOrLoadBundleAsync(bundleName, ct);
             if (bundle == null) return null;
-            var fullName = this.ResolveAssetName(bundleName, assetPath);
+            var fullName = this.ResolveFullAssetPath(assetPath);
             return (T?)await bundle.LoadAssetAsync<T>(fullName).ToUniTask(cancellationToken: ct);
 #endif
         }
@@ -218,7 +217,6 @@ namespace Uft.AssetBundleTools
         {
             if (bundle != null)
             {
-                this.CreateAssetNameCache(bundleName, bundle);
                 this._bundleCache[bundleName] = bundle;
             }
             else
@@ -226,25 +224,6 @@ namespace Uft.AssetBundleTools
                 this._logError?.Invoke($"{NAME_TAG} Failed to load bundle: {bundlePath}");
             }
             return bundle;
-        }
-
-        protected virtual void CreateAssetNameCache(string bundleName, AssetBundle bundle)
-        {
-            var prefix = this._assetPathBase;
-            var nameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var fullName in bundle.GetAllAssetNames())
-            {
-                nameMap[fullName] = fullName;
-                nameMap[Path.ChangeExtension(fullName, null)] = fullName;
-
-                if (fullName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    var withoutPrefix = fullName[prefix.Length..];
-                    nameMap[withoutPrefix] = fullName;
-                    nameMap[Path.ChangeExtension(withoutPrefix, null)] = fullName;
-                }
-            }
-            this._assetNameMapCache[bundleName] = nameMap;
         }
 
         protected virtual string ResolveFullAssetPath(string assetPath)
@@ -262,14 +241,6 @@ namespace Uft.AssetBundleTools
             return this._platformFolderNames.TryGetValue(Application.platform, out var folder)
                 ? folder
                 : Application.platform.ToString();
-        }
-
-        protected virtual string ResolveAssetName(string bundleName, string assetPath)
-        {
-            if (this._assetNameMapCache.TryGetValue(bundleName, out var nameMap) && nameMap.TryGetValue(assetPath, out var fullName))
-                return fullName;
-            this._logError?.Invoke($"{NAME_TAG} Asset not found in nameMap: {assetPath} (bundle: {bundleName})");
-            return assetPath;
         }
     }
 }
