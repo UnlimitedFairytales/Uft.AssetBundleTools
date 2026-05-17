@@ -1,4 +1,5 @@
 #nullable enable
+// #define USE_ASSET_DATABASE_IN_EDITOR
 
 using Cysharp.Threading.Tasks;
 using System;
@@ -156,7 +157,7 @@ namespace Uft.AssetBundleTools
             where T : UnityEngine.Object
         {
 #if UNITY_EDITOR && USE_ASSET_DATABASE_IN_EDITOR
-            return AssetDatabase.LoadAssetAtPath<T>(this.ResolveFullAssetPath(assetPath));
+            return AssetDatabase.LoadAssetAtPath<T>(this.ResolveFullAssetPath(assetPath, assetType: typeof(T)));
 #else
             AssetBundle? GetOrLoadBundle(string bundleName)
             {
@@ -169,7 +170,7 @@ namespace Uft.AssetBundleTools
             var bundleName = this._bundleNameResolver(assetPath, this._assetPathBase);
             var bundle = GetOrLoadBundle(bundleName);
             if (bundle == null) return null;
-            var fullName = this.ResolveFullAssetPath(assetPath);
+            var fullName = this.ResolveFullAssetPath(assetPath, bundleName);
             return bundle.LoadAsset<T>(fullName);
 #endif
         }
@@ -179,7 +180,7 @@ namespace Uft.AssetBundleTools
         {
 #if UNITY_EDITOR && USE_ASSET_DATABASE_IN_EDITOR
             await UniTask.Delay(0); // NOTE: 警告消し
-            return AssetDatabase.LoadAssetAtPath<T>(this.ResolveFullAssetPath(assetPath));
+            return AssetDatabase.LoadAssetAtPath<T>(this.ResolveFullAssetPath(assetPath, assetType: typeof(T)));
 #else
             UniTask<AssetBundle?> GetOrLoadBundleAsync(string bundleName, CancellationToken ct)
             {
@@ -208,7 +209,7 @@ namespace Uft.AssetBundleTools
             var bundleName = this._bundleNameResolver(assetPath, this._assetPathBase);
             var bundle = await GetOrLoadBundleAsync(bundleName, ct);
             if (bundle == null) return null;
-            var fullName = this.ResolveFullAssetPath(assetPath);
+            var fullName = this.ResolveFullAssetPath(assetPath, bundleName);
             return (T?)await bundle.LoadAssetAsync<T>(fullName).ToUniTask(cancellationToken: ct);
 #endif
         }
@@ -226,13 +227,25 @@ namespace Uft.AssetBundleTools
             return bundle;
         }
 
-        protected virtual string ResolveFullAssetPath(string assetPath)
+        protected virtual string ResolveFullAssetPath(string assetPath, string? bundleName = null, Type? assetType = null)
         {
             var fullPath = assetPath.StartsWith(this._assetPathBase, StringComparison.OrdinalIgnoreCase)
                         || assetPath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase)
                 ? assetPath
                 : this._assetPathBase + assetPath;
 
+            if (Path.HasExtension(fullPath)) return fullPath;
+
+            // 拡張子なし: バンドルはファイル名だけで大文字小文字無視の名前検索ができる
+            if (bundleName != null) return Path.GetFileName(fullPath);
+
+#if UNITY_EDITOR
+            var typeFilter = assetType != null ? $"t:{assetType.Name} " : "";
+            var dir = Path.GetDirectoryName(fullPath)?.Replace('\\', '/');
+            var guids = AssetDatabase.FindAssets($"{typeFilter}{Path.GetFileName(fullPath)}", dir != null ? new[] { dir } : null);
+            if (guids.Length > 0) return AssetDatabase.GUIDToAssetPath(guids[0]);
+            this._logError?.Invoke($"{NAME_TAG} Asset not found: {assetPath}");
+#endif
             return fullPath;
         }
 
