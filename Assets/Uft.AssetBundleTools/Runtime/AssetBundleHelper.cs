@@ -156,6 +156,9 @@ namespace Uft.AssetBundleTools
         public T? LoadFromAssetBundle<T>(string assetPath)
             where T : UnityEngine.Object
         {
+#if UNITY_EDITOR && USE_ASSET_DATABASE_IN_EDITOR
+            return AssetDatabase.LoadAssetAtPath<T>(this.ResolveFullAssetPath(assetPath));
+#else
             AssetBundle? GetOrLoadBundle(string bundleName)
             {
                 if (this._bundleCache.TryGetValue(bundleName, out var cached)) return cached;
@@ -169,11 +172,16 @@ namespace Uft.AssetBundleTools
             if (bundle == null) return null;
             var fullName = this.ResolveAssetName(bundleName, assetPath);
             return bundle.LoadAsset<T>(fullName);
+#endif
         }
 
         public async UniTask<T?> LoadFromAssetBundleAsync<T>(string assetPath, CancellationToken ct)
             where T : UnityEngine.Object
         {
+#if UNITY_EDITOR && USE_ASSET_DATABASE_IN_EDITOR
+            await UniTask.Delay(0); // NOTE: 警告消し
+            return AssetDatabase.LoadAssetAtPath<T>(this.ResolveFullAssetPath(assetPath));
+#else
             UniTask<AssetBundle?> GetOrLoadBundleAsync(string bundleName, CancellationToken ct)
             {
                 if (this._bundleCache.TryGetValue(bundleName, out var cached)) return UniTask.FromResult<AssetBundle?>(cached);
@@ -203,6 +211,7 @@ namespace Uft.AssetBundleTools
             if (bundle == null) return null;
             var fullName = this.ResolveAssetName(bundleName, assetPath);
             return (T?)await bundle.LoadAssetAsync<T>(fullName).ToUniTask(cancellationToken: ct);
+#endif
         }
 
         AssetBundle? RegisterLoadedBundle(string bundleName, AssetBundle? bundle, string bundlePath)
@@ -236,6 +245,16 @@ namespace Uft.AssetBundleTools
                 }
             }
             this._assetNameMapCache[bundleName] = nameMap;
+        }
+
+        protected virtual string ResolveFullAssetPath(string assetPath)
+        {
+            var fullPath = assetPath.StartsWith(this._assetPathBase, StringComparison.OrdinalIgnoreCase)
+                        || assetPath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase)
+                ? assetPath
+                : this._assetPathBase + assetPath;
+
+            return fullPath;
         }
 
         protected virtual string GetPlatformFolder()
